@@ -269,9 +269,19 @@ This project was built with **[Cursor AI](https://cursor.com)** for:
 
 | Doc | Description |
 |-----|-------------|
+| **[docs/architecture.md](docs/architecture.md)** | **Architecture diagram, assumptions, design decisions, AgentCore trade-offs** (primary reviewer doc) |
 | [docs/DEPLOY.md](docs/DEPLOY.md) | Complete AWS deployment guide |
-| [docs/architecture.md](docs/architecture.md) | Architecture diagram and design decisions |
 | [docs/AWS_SETUP.md](docs/AWS_SETUP.md) | AWS account and resource setup |
+
+### For reviewers (assessment deliverables)
+
+All required submission items are in the repo:
+
+1. **Architecture diagram** → [docs/architecture.md §1](docs/architecture.md#1-architecture-diagram-production) (Mermaid — renders on GitHub)
+2. **Assumptions & design decisions** → [docs/architecture.md §3–4](docs/architecture.md#3-design-decisions)
+3. **AgentCore capabilities & trade-offs** → [docs/architecture.md §5–6](docs/architecture.md#5-agentcore-capabilities--what-we-used--why)
+4. **Live demo** → https://dj5efjm4yxqlb.cloudfront.net (login: `sagar-test` / `Sagar@123`)
+5. **Source code** → this repository
 
 ---
 
