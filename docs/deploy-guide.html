@@ -1,0 +1,313 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>DevOps Incident Agent — Deploy & Configure Guide</title>
+  <style>
+    :root {
+      --bg: #f1f5f9;
+      --card: #fff;
+      --text: #0f172a;
+      --muted: #64748b;
+      --accent: #2563eb;
+      --ok: #16a34a;
+      --warn: #d97706;
+      --border: #e2e8f0;
+      --code-bg: #0f172a;
+      --code-text: #e2e8f0;
+    }
+    * { box-sizing: border-box; }
+    body {
+      font-family: Inter, system-ui, sans-serif;
+      background: var(--bg);
+      color: var(--text);
+      margin: 0;
+      line-height: 1.6;
+    }
+    header {
+      background: linear-gradient(135deg, #1e3a8a, #2563eb);
+      color: white;
+      padding: 2rem 1.5rem;
+    }
+    header h1 { margin: 0 0 0.5rem; font-size: 1.75rem; }
+    header p { margin: 0; opacity: 0.9; }
+    .wrap { max-width: 900px; margin: 0 auto; padding: 1.5rem; }
+    .nav {
+      display: flex; flex-wrap: wrap; gap: 0.5rem;
+      margin: 1rem 0 1.5rem;
+    }
+    .nav a {
+      background: var(--card);
+      border: 1px solid var(--border);
+      padding: 0.375rem 0.75rem;
+      border-radius: 999px;
+      font-size: 0.8125rem;
+      color: var(--accent);
+      text-decoration: none;
+    }
+    section {
+      background: var(--card);
+      border: 1px solid var(--border);
+      border-radius: 12px;
+      padding: 1.25rem 1.5rem;
+      margin-bottom: 1rem;
+      box-shadow: 0 1px 3px rgba(15,23,42,0.06);
+    }
+    h2 { margin-top: 0; font-size: 1.25rem; border-bottom: 2px solid var(--border); padding-bottom: 0.5rem; }
+    h3 { font-size: 1rem; margin-top: 1.25rem; }
+    ol, ul { padding-left: 1.25rem; }
+    li { margin: 0.375rem 0; }
+    .checklist { list-style: none; padding: 0; }
+    .checklist li::before { content: "☐ "; color: var(--accent); font-weight: bold; }
+    table { width: 100%; border-collapse: collapse; font-size: 0.875rem; margin: 0.75rem 0; }
+    th, td { border: 1px solid var(--border); padding: 0.5rem 0.75rem; text-align: left; }
+    th { background: #f8fafc; }
+    pre {
+      background: var(--code-bg);
+      color: var(--code-text);
+      padding: 1rem;
+      border-radius: 8px;
+      overflow-x: auto;
+      font-size: 0.8125rem;
+      line-height: 1.5;
+    }
+    code { font-family: "JetBrains Mono", monospace; }
+    .badge {
+      display: inline-block;
+      font-size: 0.6875rem;
+      font-weight: 700;
+      padding: 0.125rem 0.5rem;
+      border-radius: 999px;
+      text-transform: uppercase;
+    }
+    .badge-console { background: #eff6ff; color: var(--accent); }
+    .badge-terminal { background: #f0fdf4; color: var(--ok); }
+    .badge-required { background: #fef2f2; color: #dc2626; }
+    .note {
+      background: #fffbeb;
+      border: 1px solid #fde68a;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+      margin: 0.75rem 0;
+    }
+    .ok-box {
+      background: #f0fdf4;
+      border: 1px solid #bbf7d0;
+      border-radius: 8px;
+      padding: 0.75rem 1rem;
+      font-size: 0.875rem;
+    }
+    .arch {
+      background: #f8fafc;
+      border: 1px dashed var(--border);
+      border-radius: 8px;
+      padding: 1rem;
+      font-family: monospace;
+      font-size: 0.8125rem;
+      white-space: pre;
+      overflow-x: auto;
+    }
+  </style>
+</head>
+<body>
+  <header>
+    <div class="wrap">
+      <h1>DevOps Incident Agent — Deploy & Configure</h1>
+      <p>All AWS · No Amplify · Backend on AgentCore · Frontend on S3 + CloudFront</p>
+      <p>Account: <strong>148761674610</strong> · Region: <strong>us-east-1</strong></p>
+    </div>
+  </header>
+
+  <div class="wrap">
+    <nav class="nav">
+      <a href="#arch">Architecture</a>
+      <a href="#local">Local Run</a>
+      <a href="#aws-resources">AWS Resources</a>
+      <a href="#backend">Backend Deploy</a>
+      <a href="#frontend">Frontend Deploy</a>
+      <a href="#env">Environment Vars</a>
+      <a href="#verify">Verify & Test</a>
+      <a href="#checklist">Checklist</a>
+    </nav>
+
+    <section id="arch">
+      <h2>Architecture</h2>
+      <div class="arch">Browser
+  │
+  ├─► CloudFront ──► S3 (React UI static files)
+  │
+  └─► AgentCore Runtime ──► Express + Strands Agent (:8080)
+         │
+         ├─► Amazon Bedrock (Claude)
+         ├─► CloudWatch Logs
+         ├─► CloudWatch Alarms / ECS
+         ├─► SNS (escalation)
+         └─► Runbooks (markdown in container)</div>
+      <p><span class="badge badge-required">Required</span> Assessment needs <strong>AgentCore Runtime</strong> + <strong>Strands</strong>. Creating a new IAM user is <strong>NOT</strong> required.</p>
+    </section>
+
+    <section id="local">
+      <h2>Step 0 — Run locally first</h2>
+      <p><span class="badge badge-terminal">Terminal</span></p>
+      <pre>cd backend && npm install && npm run dev    # http://localhost:3001
+cd frontend && npm install && npm run dev   # http://localhost:5173</pre>
+      <div class="ok-box">Open <strong>http://localhost:5173</strong> → report an incident → you should see tool evidence (CloudWatch, Runbook, SNS) in the chat.</div>
+    </section>
+
+    <section id="aws-resources">
+      <h2>Step 1 — AWS resources (Console clicks)</h2>
+
+      <h3>1A — Bedrock model access <span class="badge badge-console">Console</span></h3>
+      <ol>
+        <li>AWS Console → search <strong>Amazon Bedrock</strong></li>
+        <li>Region: <strong>US East (N. Virginia)</strong></li>
+        <li>Left → <strong>Model access</strong> → Enable <strong>Claude Sonnet</strong></li>
+        <li>Wait for status: <strong>Access granted</strong></li>
+      </ol>
+
+      <h3>1B — CloudWatch log group <span class="badge badge-console">Console</span></h3>
+      <ol>
+        <li>Search → <strong>CloudWatch</strong> → <strong>Log groups</strong> → <strong>Create</strong></li>
+        <li>Name: <code>/devops/incident-demo</code></li>
+      </ol>
+
+      <h3>1C — SNS topic <span class="badge badge-console">Console</span></h3>
+      <ol>
+        <li>Search → <strong>SNS</strong> → <strong>Topics</strong> → <strong>Create topic</strong></li>
+        <li>Name: <code>devops-incident-escalation</code></li>
+        <li>Create subscription → Protocol: <strong>Email</strong> → your email</li>
+        <li>Confirm subscription from inbox</li>
+      </ol>
+    </section>
+
+    <section id="backend">
+      <h2>Step 2 — Deploy backend (AgentCore + ECR)</h2>
+
+      <h3>2A — Create ECR repository <span class="badge badge-console">Console</span></h3>
+      <ol>
+        <li>Search → <strong>ECR</strong> → <strong>Repositories</strong> → <strong>Create</strong></li>
+        <li>Name: <code>devops-incident-agent</code></li>
+        <li>Copy URI: <code>148761674610.dkr.ecr.us-east-1.amazonaws.com/devops-incident-agent</code></li>
+      </ol>
+
+      <h3>2B — Build & push Docker image <span class="badge badge-terminal">Terminal</span></h3>
+      <pre>cd backend
+
+aws ecr get-login-password --region us-east-1 | \
+  docker login --username AWS --password-stdin \
+  148761674610.dkr.ecr.us-east-1.amazonaws.com
+
+docker build --platform linux/arm64 -t devops-incident-agent .
+
+docker tag devops-incident-agent:latest \
+  148761674610.dkr.ecr.us-east-1.amazonaws.com/devops-incident-agent:latest
+
+docker push \
+  148761674610.dkr.ecr.us-east-1.amazonaws.com/devops-incident-agent:latest</pre>
+
+      <h3>2C — Create AgentCore Runtime <span class="badge badge-console">Console</span></h3>
+      <ol>
+        <li>Search → <strong>Amazon Bedrock</strong></li>
+        <li>Left → <strong>AgentCore</strong> → <strong>Runtimes</strong> → <strong>Create runtime</strong></li>
+        <li>Artifact: <strong>Container</strong></li>
+        <li>Container URI: <code>148761674610.dkr.ecr.us-east-1.amazonaws.com/devops-incident-agent:latest</code></li>
+        <li>Port: <code>8080</code> · Network: <strong>Public</strong> · Protocol: <strong>HTTP</strong></li>
+        <li>IAM Role: click <strong>Create and use a new service role</strong> (easiest)</li>
+        <li>Add environment variables (see table below)</li>
+        <li>Create → wait until <strong>Active</strong></li>
+        <li>Copy the <strong>Runtime endpoint URL</strong></li>
+      </ol>
+    </section>
+
+    <section id="frontend">
+      <h2>Step 3 — Deploy frontend (S3 + CloudFront)</h2>
+
+      <h3>3A — Build React app <span class="badge badge-terminal">Terminal</span></h3>
+      <pre>cd frontend
+echo "VITE_API_URL=https://YOUR-RUNTIME-URL-HERE" > .env.production
+npm run build</pre>
+
+      <h3>3B — S3 bucket <span class="badge badge-console">Console</span></h3>
+      <ol>
+        <li>Search → <strong>S3</strong> → <strong>Create bucket</strong></li>
+        <li>Name: <code>devops-incident-ui-148761674610</code> (unique globally)</li>
+        <li>Region: us-east-1</li>
+        <li>Upload all files from <code>frontend/dist/</code></li>
+      </ol>
+
+      <h3>3C — CloudFront <span class="badge badge-console">Console</span></h3>
+      <ol>
+        <li>Search → <strong>CloudFront</strong> → <strong>Create distribution</strong></li>
+        <li>Origin: your S3 bucket · OAC enabled</li>
+        <li>Default root object: <code>index.html</code></li>
+        <li>Error pages: 403 and 404 → redirect to <code>/index.html</code> with 200</li>
+        <li>Copy CloudFront URL: <code>https://dxxxx.cloudfront.net</code></li>
+      </ol>
+
+      <h3>3D — Update CORS on backend</h3>
+      <p>AgentCore Runtime → Edit → set <code>CORS_ORIGIN</code> to your CloudFront URL (no trailing slash).</p>
+    </section>
+
+    <section id="env">
+      <h2>Environment variables (AgentCore Runtime)</h2>
+      <table>
+        <tr><th>Key</th><th>Value</th></tr>
+        <tr><td>PORT</td><td>8080</td></tr>
+        <tr><td>AWS_REGION</td><td>us-east-1</td></tr>
+        <tr><td>BEDROCK_MODEL_ID</td><td>us.anthropic.claude-sonnet-4-5-20250929-v1:0</td></tr>
+        <tr><td>CLOUDWATCH_LOG_GROUP</td><td>/devops/incident-demo</td></tr>
+        <tr><td>SNS_ESCALATION_TOPIC_ARN</td><td>arn:aws:sns:us-east-1:148761674610:devops-incident-escalation</td></tr>
+        <tr><td>CORS_ORIGIN</td><td>https://YOUR-CLOUDFRONT-URL</td></tr>
+      </table>
+    </section>
+
+    <section id="verify">
+      <h2>Step 4 — Verify everything works</h2>
+
+      <h3>Backend checks <span class="badge badge-terminal">Terminal</span></h3>
+      <pre>curl https://YOUR-RUNTIME-URL/health
+curl https://YOUR-RUNTIME-URL/ping
+curl https://YOUR-RUNTIME-URL/api/tools</pre>
+      <p>Expected: JSON with <code>"status":"healthy"</code> and list of 4 tools.</p>
+
+      <h3>Frontend checks <span class="badge badge-console">Browser</span></h3>
+      <ol>
+        <li>Open CloudFront URL</li>
+        <li>Left panel shows 4 tools: CloudWatch Logs, Service Health, Runbook, SNS</li>
+        <li>Send: <em>"Payment API returning 503 errors in production"</em></li>
+        <li>Chat shows <strong>Tool evidence</strong> boxes with input/output for each AWS tool</li>
+        <li>Below that: AI analysis in formatted markdown</li>
+        <li>DevTools → Network → <code>chat</code> returns 200 with <code>toolCalls</code> array</li>
+      </ol>
+
+      <h3>What each tool should show in UI</h3>
+      <table>
+        <tr><th>Tool</th><th>What user sees</th></tr>
+        <tr><td>CloudWatch Logs</td><td>Log lines from /devops/incident-demo</td></tr>
+        <tr><td>Service Health</td><td>ECS/alarms status or mock service health</td></tr>
+        <tr><td>Runbook Lookup</td><td>Markdown runbook content</td></tr>
+        <tr><td>SNS Escalation</td><td>MessageId if HIGH/CRITICAL incident</td></tr>
+      </table>
+    </section>
+
+    <section id="checklist">
+      <h2>Submission checklist</h2>
+      <ul class="checklist">
+        <li>Agent works locally with Strands + 4 tools</li>
+        <li>Tool inputs/outputs visible in UI</li>
+        <li>Backend deployed to AgentCore Runtime</li>
+        <li>Frontend on S3 + CloudFront</li>
+        <li>README + architecture diagram in GitHub</li>
+        <li>AgentCore capabilities explained in README</li>
+        <li>GitHub repo link submitted</li>
+      </ul>
+
+      <div class="note">
+        <strong>Security:</strong> Do not commit <code>.env</code> or AWS keys to GitHub. Use IAM roles on AgentCore — no new IAM user required for assessment.
+      </div>
+    </section>
+  </div>
+</body>
+</html>
